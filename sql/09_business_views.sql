@@ -119,3 +119,38 @@ GROUP BY
     i.ITEM_CODE,
     i.ITEM_DESCRIPTION,
     i.ITEM_TYPE;
+
+
+-- ==========================================
+-- BUSINESS VIEW 5 : DISTRIBUTION ANALYSIS
+-- ==========================================
+
+CREATE OR REPLACE VIEW VW_DISTRIBUTION_ANALYSIS AS
+
+SELECT
+
+    s.YEAR,
+    s.MONTH,
+
+    i.ITEM_CODE,
+    i.ITEM_DESCRIPTION,
+    i.ITEM_TYPE,
+
+    sp.SUPPLIER_NAME,
+
+    s.RETAIL_SALES,
+    s.RETAIL_TRANSFERS,
+    s.WAREHOUSE_SALES,
+
+    CASE
+        WHEN NVL(s.RETAIL_TRANSFERS, 0) > 0 THEN 'TRANSFER ACTIVE'
+        ELSE 'NO TRANSFER'
+    END AS TRANSFER_STATUS
+
+FROM SALES s
+
+JOIN ITEM i
+ON s.ITEM_CODE = i.ITEM_CODE
+
+JOIN SUPPLIER sp
+ON s.SUPPLIER_ID = sp.SUPPLIER_ID;
