@@ -1,0 +1,172 @@
+-- ==========================================
+-- DASHBOARD 1
+-- Executive KPIs
+-- ==========================================
+
+SELECT
+
+    SUM(TOTAL_SALES) AS TOTAL_SALES,
+
+    SUM(TOTAL_RETAIL_SALES) AS TOTAL_RETAIL_SALES,
+
+    SUM(TOTAL_WAREHOUSE_SALES) AS TOTAL_WAREHOUSE_SALES,
+
+    COUNT(DISTINCT SUPPLIER_ID) AS TOTAL_SUPPLIERS,
+
+    COUNT(DISTINCT ITEM_CODE) AS TOTAL_PRODUCTS
+
+FROM VW_SALES_DETAILS;
+
+-- ==========================================
+-- Executive Monthly Trend
+-- ==========================================
+
+SELECT *
+
+FROM VW_MONTHLY_SALES
+
+ORDER BY
+    YEAR,
+    MONTH;
+
+-- ==========================================
+-- Executive Top Suppliers
+-- ==========================================
+
+SELECT
+
+    SUPPLIER_NAME,
+
+    TOTAL_SALES
+
+FROM VW_SUPPLIER_PERFORMANCE
+
+ORDER BY TOTAL_SALES DESC
+
+FETCH FIRST 10 ROWS ONLY;
+
+-- ==========================================
+-- Executive Top Products
+-- ==========================================
+
+SELECT
+
+    ITEM_DESCRIPTION,
+
+    TOTAL_SALES
+
+FROM VW_PRODUCT_PERFORMANCE
+
+ORDER BY TOTAL_SALES DESC
+
+FETCH FIRST 10 ROWS ONLY;
+
+-- ==========================================
+-- Demand Planning
+-- Monthly Trend
+-- ==========================================
+
+SELECT
+
+    YEAR,
+    MONTH,
+    TOTAL_SALES
+
+FROM VW_MONTHLY_SALES
+
+ORDER BY
+    YEAR,
+    MONTH;
+
+SELECT
+
+    ITEM_TYPE,
+
+    SUM(TOTAL_SALES) AS TOTAL_SALES
+
+FROM VW_PRODUCT_PERFORMANCE
+
+GROUP BY ITEM_TYPE
+
+ORDER BY TOTAL_SALES DESC;
+
+SELECT
+
+    ITEM_DESCRIPTION,
+
+    TOTAL_SALES
+
+FROM VW_PRODUCT_PERFORMANCE
+
+ORDER BY TOTAL_SALES DESC
+
+FETCH FIRST 20 ROWS ONLY;
+
+SELECT
+
+    YEAR,
+    MONTH,
+
+    TOTAL_RETAIL_SALES,
+
+    TOTAL_WAREHOUSE_SALES
+
+FROM VW_MONTHLY_SALES
+
+ORDER BY
+    YEAR,
+    MONTH;
+
+SELECT
+
+    SUPPLIER_NAME,
+
+    TOTAL_WAREHOUSE_SALES
+
+FROM VW_SUPPLIER_PERFORMANCE
+
+ORDER BY TOTAL_WAREHOUSE_SALES DESC;
+
+SELECT
+
+    ITEM_TYPE,
+
+    SUM(TOTAL_WAREHOUSE_SALES) AS TOTAL_WAREHOUSE_SALES
+
+FROM VW_PRODUCT_PERFORMANCE
+
+GROUP BY ITEM_TYPE
+
+ORDER BY TOTAL_WAREHOUSE_SALES DESC;
+
+-- Dashboard 4
+
+SELECT *
+
+FROM VW_SUPPLIER_PERFORMANCE
+
+ORDER BY TOTAL_SALES DESC;
+
+SELECT
+
+    SUPPLIER_NAME,
+
+    PRODUCT_COUNT
+
+FROM VW_SUPPLIER_PERFORMANCE
+
+ORDER BY PRODUCT_COUNT DESC;
+
+SELECT
+
+    SUPPLIER_NAME,
+
+    ROUND(
+        TOTAL_SALES /
+        SUM(TOTAL_SALES) OVER() * 100,
+        2
+    ) AS CONTRIBUTION_PERCENT
+
+FROM VW_SUPPLIER_PERFORMANCE
+
+ORDER BY CONTRIBUTION_PERCENT DESC;

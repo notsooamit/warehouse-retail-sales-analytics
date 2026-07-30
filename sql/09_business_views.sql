@@ -1,0 +1,121 @@
+-- ==========================================
+-- BUSINESS VIEW 1 : SALES DETAILS
+-- ==========================================
+
+CREATE OR REPLACE VIEW VW_SALES_DETAILS AS
+
+SELECT
+
+    s.YEAR,
+    s.MONTH,
+
+    i.ITEM_CODE,
+    i.ITEM_DESCRIPTION,
+    i.ITEM_TYPE,
+
+    sp.SUPPLIER_ID,
+    sp.SUPPLIER_NAME,
+
+    s.RETAIL_SALES,
+    s.RETAIL_TRANSFERS,
+    s.WAREHOUSE_SALES
+
+FROM SALES s
+
+JOIN ITEM i
+ON s.ITEM_CODE = i.ITEM_CODE
+
+JOIN SUPPLIER sp
+ON s.SUPPLIER_ID = sp.SUPPLIER_ID;
+
+-- ==========================================
+-- BUSINESS VIEW 2 : MONTHLY SALES
+-- ==========================================
+
+CREATE OR REPLACE VIEW VW_MONTHLY_SALES AS
+
+SELECT
+
+    YEAR,
+    MONTH,
+
+    SUM(RETAIL_SALES)        AS TOTAL_RETAIL_SALES,
+    SUM(RETAIL_TRANSFERS)    AS TOTAL_RETAIL_TRANSFERS,
+    SUM(WAREHOUSE_SALES)     AS TOTAL_WAREHOUSE_SALES,
+
+    SUM(
+        NVL(RETAIL_SALES,0)
+        + NVL(WAREHOUSE_SALES,0)
+    ) AS TOTAL_SALES
+
+FROM SALES
+
+GROUP BY
+    YEAR,
+    MONTH;
+
+
+-- ==========================================
+-- BUSINESS VIEW 3 : SUPPLIER PERFORMANCE
+-- ==========================================
+
+CREATE OR REPLACE VIEW VW_SUPPLIER_PERFORMANCE AS
+
+SELECT
+
+    sp.SUPPLIER_ID,
+    sp.SUPPLIER_NAME,
+
+    COUNT(DISTINCT s.ITEM_CODE) AS PRODUCT_COUNT,
+
+    SUM(s.RETAIL_SALES) AS TOTAL_RETAIL_SALES,
+
+    SUM(s.WAREHOUSE_SALES) AS TOTAL_WAREHOUSE_SALES,
+
+    SUM(
+        NVL(s.RETAIL_SALES,0)
+        + NVL(s.WAREHOUSE_SALES,0)
+    ) AS TOTAL_SALES
+
+FROM SUPPLIER sp
+
+JOIN SALES s
+ON sp.SUPPLIER_ID = s.SUPPLIER_ID
+
+GROUP BY
+
+    sp.SUPPLIER_ID,
+    sp.SUPPLIER_NAME;
+
+
+-- ==========================================
+-- BUSINESS VIEW 4 : PRODUCT PERFORMANCE
+-- ==========================================
+
+CREATE OR REPLACE VIEW VW_PRODUCT_PERFORMANCE AS
+
+SELECT
+
+    i.ITEM_CODE,
+    i.ITEM_DESCRIPTION,
+    i.ITEM_TYPE,
+
+    SUM(s.RETAIL_SALES) AS TOTAL_RETAIL_SALES,
+
+    SUM(s.WAREHOUSE_SALES) AS TOTAL_WAREHOUSE_SALES,
+
+    SUM(
+        NVL(s.RETAIL_SALES,0)
+        + NVL(s.WAREHOUSE_SALES,0)
+    ) AS TOTAL_SALES
+
+FROM ITEM i
+
+JOIN SALES s
+ON i.ITEM_CODE = s.ITEM_CODE
+
+GROUP BY
+
+    i.ITEM_CODE,
+    i.ITEM_DESCRIPTION,
+    i.ITEM_TYPE;
