@@ -36,28 +36,28 @@ An end-to-end **ETL pipeline** that extracts 319,000+ retail and warehouse sales
 The project follows a layered architecture with clear separation between data processing, storage, and analytics:
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│                     PRESENTATION LAYER                        │
-│   Power BI Dashboard · Executive KPIs · Analytics Reports    │
-├────────────────────────────────────────────────────────────────┤
-│                     ANALYTICS LAYER (SQL)                      │
-│   Demand Planning · Supplier · Warehouse · Product Analytics  │
-├────────────────────────────────────────────────────────────────┤
-│                     VIEW LAYER (SQL)                           │
-│   VW_SALES_DETAILS · VW_MONTHLY_SALES                         │
-│   VW_SUPPLIER_PERFORMANCE · VW_PRODUCT_PERFORMANCE            │
-│   VW_DISTRIBUTION_ANALYSIS                                     │
-├────────────────────────────────────────────────────────────────┤
-│                     STORAGE LAYER (Oracle)                     │
-│   SUPPLIER (PK) ──┐                                           │
-│   ITEM (PK) ──────┼──→ SALES (FK, FK)                         │
-├────────────────────────────────────────────────────────────────┤
-│                     ETL LAYER (Python)                         │
-│   Extract (CSV) → Explore → Clean → Normalize → Load (Oracle) │
-├────────────────────────────────────────────────────────────────┤
-│                     SOURCE LAYER                               │
-│   sales.csv (319,029 rows · 34 MB)                             │
-└────────────────────────────────────────────────────────────────┘
++----------------------------------------------------------------+
+|                     PRESENTATION LAYER                         |
+|   Power BI Dashboard - Executive KPIs - Analytics Reports      |
++----------------------------------------------------------------+
+|                     ANALYTICS LAYER (SQL)                       |
+|   Demand Planning - Supplier - Warehouse - Product Analytics   |
++----------------------------------------------------------------+
+|                     VIEW LAYER (SQL)                            |
+|   VW_SALES_DETAILS - VW_MONTHLY_SALES                          |
+|   VW_SUPPLIER_PERFORMANCE - VW_PRODUCT_PERFORMANCE             |
+|   VW_DISTRIBUTION_ANALYSIS                                     |
++----------------------------------------------------------------+
+|                     STORAGE LAYER (Oracle)                      |
+|   SUPPLIER (PK) ---+                                           |
+|   ITEM (PK) -------+--> SALES (FK, FK)                         |
++----------------------------------------------------------------+
+|                     ETL LAYER (Python)                          |
+|   Extract (CSV) > Explore > Clean > Normalize > Load (Oracle)  |
++----------------------------------------------------------------+
+|                     SOURCE LAYER                                |
+|   sales.csv (319,029 rows, 34 MB)                              |
++----------------------------------------------------------------+
 ```
 
 ---
@@ -67,10 +67,10 @@ The project follows a layered architecture with clear separation between data pr
 The pipeline executes in five sequential stages:
 
 ```
- ╔══════════╗     ╔══════════╗     ╔══════════╗     ╔═════════════╗     ╔══════════╗
- ║ EXTRACT  ║ ──→ ║ EXPLORE  ║ ──→ ║  CLEAN   ║ ──→ ║  NORMALIZE  ║ ──→ ║   LOAD   ║
- ║ CSV Read ║     ║ Profiling║     ║ Transform║     ║  3NF Split  ║     ║  Oracle  ║
- ╚══════════╝     ╚══════════╝     ╚══════════╝     ╚═════════════╝     ╚══════════╝
+ +----------+     +----------+     +----------+     +-------------+     +----------+
+ | EXTRACT  | --> | EXPLORE  | --> |  CLEAN   | --> |  NORMALIZE  | --> |   LOAD   |
+ | CSV Read |     | Profiling|     | Transform|     |  3NF Split  |     |  Oracle  |
+ +----------+     +----------+     +----------+     +-------------+     +----------+
 ```
 
 ### Stage 1 — Extract
@@ -108,25 +108,26 @@ Post-cleaning validation confirms all sales columns are numeric with no residual
 Decomposes the flat CSV into **Third Normal Form (3NF)**:
 
 ```
-                    ┌──────────────────┐
-                    │    sales.csv     │
-                    │   (flat file)    │
-                    └────────┬─────────┘
-                             │
-               ┌─────────────┼─────────────┐
-               ▼             ▼             ▼
-      ┌──────────────┐ ┌──────────┐ ┌──────────────┐
-      │   SUPPLIER   │ │   ITEM   │ │    SALES     │
-      │──────────────│ │──────────│ │──────────────│
-      │ SUPPLIER_ID  │ │ ITEM_CODE│ │ YEAR         │
-      │ SUPPLIER_NAME│ │ ITEM_DESC│ │ MONTH        │
-      └──────┬───────┘ │ ITEM_TYPE│ │ ITEM_CODE(FK)│
-             │         └────┬─────┘ │ SUPPLIER_ID  │
-             │              │       │   (FK)       │
-             └──────────────┴───────│ RETAIL_SALES │
-                      referenced by │ RETAIL_TRANS │
-                                    │ WAREHOUSE    │
-                                    └──────────────┘
+                     +------------------+
+                     |    sales.csv     |
+                     |   (flat file)    |
+                     +--------+---------+
+                              |
+                +-------------+-------------+
+                |             |             |
+                v             v             v
+       +--------------+ +----------+ +--------------+
+       |   SUPPLIER   | |   ITEM   | |    SALES     |
+       |--------------| |----------| |--------------|
+       | SUPPLIER_ID  | | ITEM_CODE| | YEAR         |
+       | SUPPLIER_NAME| | ITEM_DESC| | MONTH        |
+       +------+-------+ | ITEM_TYPE| | ITEM_CODE(FK)|
+              |          +----+-----+ | SUPPLIER_ID  |
+              |               |       |   (FK)       |
+              +---------------+-------| RETAIL_SALES |
+                    referenced by     | RETAIL_TRANS |
+                                      | WAREHOUSE    |
+                                      +--------------+
 ```
 
 Validation checks after normalization confirm no duplicate primary keys and no missing foreign keys.
@@ -142,23 +143,23 @@ Inserts normalized DataFrames into Oracle using `python-oracledb`. Handles `NaN`
 ### Entity-Relationship Diagram
 
 ```
-┌──────────────────────┐          ┌──────────────────────────────────┐
-│      SUPPLIER        │          │              SALES               │
-│──────────────────────│          │──────────────────────────────────│
-│ * SUPPLIER_ID  (PK)  │─────┐   │   YEAR             NUMBER  (NN) │
-│   SUPPLIER_NAME      │     │   │   MONTH            NUMBER  (NN) │
-│   VARCHAR2(200)      │     ├──→│ * SUPPLIER_ID (FK)  NUMBER  (NN) │
-└──────────────────────┘     │   │ * ITEM_CODE   (FK)  VARCHAR (NN) │
-                             │   │   RETAIL_SALES      NUMBER(12,2) │
-┌──────────────────────┐     │   │   RETAIL_TRANSFERS  NUMBER(12,2) │
-│        ITEM          │     │   │   WAREHOUSE_SALES   NUMBER(12,2) │
-│──────────────────────│     │   └──────────────────────────────────┘
-│ * ITEM_CODE    (PK)  │─────┘
-│   ITEM_DESCRIPTION   │            PK = Primary Key
-│   VARCHAR2(300)      │            FK = Foreign Key
-│   ITEM_TYPE          │            NN = NOT NULL
-│   VARCHAR2(50)       │
-└──────────────────────┘
++----------------------+          +----------------------------------+
+|      SUPPLIER        |          |              SALES               |
+|----------------------|          |----------------------------------|
+| * SUPPLIER_ID  (PK)  |-----+   |   YEAR             NUMBER  (NN) |
+|   SUPPLIER_NAME      |     |   |   MONTH            NUMBER  (NN) |
+|   VARCHAR2(200)      |     +-->| * SUPPLIER_ID (FK)  NUMBER  (NN) |
++----------------------+     |   | * ITEM_CODE   (FK)  VARCHAR (NN) |
+                             |   |   RETAIL_SALES      NUMBER(12,2) |
++----------------------+     |   |   RETAIL_TRANSFERS  NUMBER(12,2) |
+|        ITEM          |     |   |   WAREHOUSE_SALES   NUMBER(12,2) |
+|----------------------|     |   +----------------------------------+
+| * ITEM_CODE    (PK)  |-----+
+|   ITEM_DESCRIPTION   |            PK = Primary Key
+|   VARCHAR2(300)      |            FK = Foreign Key
+|   ITEM_TYPE          |            NN = NOT NULL
+|   VARCHAR2(50)       |
++----------------------+
 ```
 
 ### Constraints
@@ -251,28 +252,28 @@ Sales_ETL_Project/
 ### Module Responsibilities
 
 ```
-┌─────────────┐
-│  main.py    │  Orchestrates the full ETL pipeline
-└──────┬──────┘
-       │ imports
-       ▼
-┌─────────────────────────────────────────────────┐
-│                    src/                          │
-│                                                 │
-│  config.py ─────→ Constants & DB configuration  │
-│       │                                         │
-│       ▼                                         │
-│  explore.py ────→ Extract + Data Profiling      │
-│       │                                         │
-│       ▼                                         │
-│  clean.py ──────→ Data Cleaning & Validation    │
-│       │                                         │
-│       ▼                                         │
-│  normalize.py ──→ 3NF Normalization             │
-│       │                                         │
-│       ▼                                         │
-│  oracle_loader.py → Oracle Insert               │
-└─────────────────────────────────────────────────┘
++-------------+
+|  main.py    |  Orchestrates the full ETL pipeline
++------+------+
+       | imports
+       v
++-------------------------------------------------+
+|                    src/                          |
+|                                                 |
+|  config.py -----> Constants & DB configuration  |
+|       |                                         |
+|       v                                         |
+|  explore.py ----> Extract + Data Profiling      |
+|       |                                         |
+|       v                                         |
+|  clean.py ------> Data Cleaning & Validation    |
+|       |                                         |
+|       v                                         |
+|  normalize.py --> 3NF Normalization             |
+|       |                                         |
+|       v                                         |
+|  oracle_loader.py -> Oracle Insert              |
++-------------------------------------------------+
 ```
 
 ---
