@@ -1,59 +1,44 @@
-# 🏗️ Sales ETL Pipeline — Python + Oracle
+# Warehouse & Retail Sales Analytics
 
-An end-to-end **ETL (Extract, Transform, Load)** pipeline that processes raw sales data from CSV, cleans and normalizes it into a 3NF relational schema, loads it into an Oracle database, and provides a rich SQL analytics layer for business intelligence.
+An end-to-end **ETL pipeline** that extracts 319,000+ retail and warehouse sales records from CSV, transforms and normalizes them into a 3NF relational schema in Oracle, and delivers business intelligence through SQL analytics and Power BI dashboards.
 
-> Built with Python · Pandas · Oracle XE · SQL
-
----
-
-## 📋 Table of Contents
-
-- [Project Overview](#-project-overview)
-- [Architecture](#-architecture)
-- [ETL Pipeline](#-etl-pipeline)
-- [Database Schema](#-database-schema)
-- [SQL Analytics Layer](#-sql-analytics-layer)
-- [Project Structure](#-project-structure)
-- [Setup & Installation](#-setup--installation)
-- [How to Run](#-how-to-run)
-- [Technical Notes](#-technical-notes)
+**Tech Stack:** Python · Pandas · Oracle XE · SQL · Power BI
 
 ---
 
-## 🔎 Project Overview
+## Dashboard Preview
 
-| Attribute | Details |
-|-----------|---------|
-| **Source Data** | `sales.csv` — 319,029 rows × 9 columns (~34 MB) |
-| **Database** | Oracle XE (21c) with Pluggable Database |
-| **Schema** | 3NF — SUPPLIER, ITEM, SALES |
-| **Analytics** | 4 Business Views, 30+ Analytical Queries |
-| **Domains** | Demand Planning · Supplier Analytics · Warehouse Analytics · Product Analytics |
+![Executive Sales Dashboard](dashboard/screenshots/01_executive_overview.png)
 
-### Source Data Columns
-
-| Column | Type | Description |
-|--------|------|-------------|
-| YEAR | Numeric | Sales year |
-| MONTH | Numeric | Sales month (1–12) |
-| SUPPLIER | Text | Supplier company name |
-| ITEM CODE | Text | Product identifier |
-| ITEM DESCRIPTION | Text | Product name |
-| ITEM TYPE | Text | Product category (WINE, BEER, etc.) |
-| RETAIL SALES | Numeric | Retail sales amount |
-| RETAIL TRANSFERS | Numeric | Inter-store transfer amount |
-| WAREHOUSE SALES | Numeric | Warehouse sales amount |
+**Key findings from the analysis:**
+- Total revenue of **$10.35M** across all channels and time periods
+- **78% of sales flow through the warehouse channel** ($8.12M) vs 22% retail ($2.23M), indicating a wholesale-dominant distribution model
+- Crown Imports leads supplier revenue at $1.84M, followed by Miller Brewing and Anheuser-Busch
+- Clear seasonal demand patterns visible in the monthly trend — useful for demand forecasting and inventory planning
 
 ---
 
-## 🏛️ Architecture
+## Table of Contents
 
-The project follows a layered architecture with clear separation of concerns:
+- [Architecture](#architecture)
+- [ETL Pipeline](#etl-pipeline)
+- [Database Schema](#database-schema)
+- [SQL Analytics Layer](#sql-analytics-layer)
+- [Project Structure](#project-structure)
+- [Setup and Installation](#setup-and-installation)
+- [How to Run](#how-to-run)
+- [Technical Notes](#technical-notes)
+
+---
+
+## Architecture
+
+The project follows a layered architecture with clear separation between data processing, storage, and analytics:
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │                     PRESENTATION LAYER                        │
-│   Dashboard Queries · Executive KPIs · Analytics Reports      │
+│   Power BI Dashboard · Executive KPIs · Analytics Reports    │
 ├────────────────────────────────────────────────────────────────┤
 │                     ANALYTICS LAYER (SQL)                      │
 │   Demand Planning · Supplier · Warehouse · Product Analytics  │
@@ -61,6 +46,7 @@ The project follows a layered architecture with clear separation of concerns:
 │                     VIEW LAYER (SQL)                           │
 │   VW_SALES_DETAILS · VW_MONTHLY_SALES                         │
 │   VW_SUPPLIER_PERFORMANCE · VW_PRODUCT_PERFORMANCE            │
+│   VW_DISTRIBUTION_ANALYSIS                                     │
 ├────────────────────────────────────────────────────────────────┤
 │                     STORAGE LAYER (Oracle)                     │
 │   SUPPLIER (PK) ──┐                                           │
@@ -76,7 +62,7 @@ The project follows a layered architecture with clear separation of concerns:
 
 ---
 
-## ⚙️ ETL Pipeline
+## ETL Pipeline
 
 The pipeline executes in five sequential stages:
 
@@ -87,13 +73,13 @@ The pipeline executes in five sequential stages:
  ╚══════════╝     ╚══════════╝     ╚══════════╝     ╚═════════════╝     ╚══════════╝
 ```
 
-### Stage 1 — Extract (`explore.py`)
+### Stage 1 — Extract
 
-Reads the raw CSV file into a Pandas DataFrame.
+Reads the raw CSV file (319,029 rows × 9 columns) into a Pandas DataFrame.
 
-### Stage 2 — Explore (`explore.py`)
+### Stage 2 — Explore
 
-Data profiling to understand quality before transformation:
+Data profiling to assess quality before transformation:
 
 | Report | Purpose |
 |--------|---------|
@@ -101,35 +87,30 @@ Data profiling to understand quality before transformation:
 | Missing Values | Per-column null counts and percentages |
 | Distinct Values | Unique value counts per column |
 | Duplicate Report | Full-row duplicate detection |
-| Special Characters | Accounting negatives `(1,234)`, commas, blanks, invalid chars |
-| Key Consistency | Checks if ITEM CODE maps to a single DESCRIPTION/TYPE/SUPPLIER |
+| Special Characters | Accounting negatives `(1,234)`, commas, blanks, invalid characters |
+| Key Consistency | Validates whether ITEM CODE maps to a single DESCRIPTION, TYPE, and SUPPLIER |
 
-### Stage 3 — Clean (`clean.py`)
+### Stage 3 — Clean
 
-Transforms sales columns from raw text to numeric:
+Transforms sales columns from raw text to numeric values:
 
-```
- Raw Value        Transformation           Result
-─────────────────────────────────────────────────
- "1,234.56"   →   Remove commas         →  1234.56
- "(500)"      →   Accounting negative   →  -500.0
- ""           →   Blank to NaN          →  NaN
- "abc"        →   Invalid to NaN        →  NaN
-```
+| Raw Value | Transformation | Result |
+|-----------|---------------|--------|
+| `1,234.56` | Remove commas | `1234.56` |
+| `(500)` | Accounting negative | `-500.0` |
+| ` ` (blank) | Blank to NaN | `NaN` |
+| `abc` | Invalid to NaN | `NaN` |
 
-Post-cleaning validation confirms:
-- All sales columns are numeric dtype
-- No commas or brackets remain
-- Missing values are counted
+Post-cleaning validation confirms all sales columns are numeric with no residual formatting characters.
 
-### Stage 4 — Normalize (`normalize.py`)
+### Stage 4 — Normalize
 
 Decomposes the flat CSV into **Third Normal Form (3NF)**:
 
 ```
                     ┌──────────────────┐
                     │    sales.csv     │
-                    │  (flat file)     │
+                    │   (flat file)    │
                     └────────┬─────────┘
                              │
                ┌─────────────┼─────────────┐
@@ -148,21 +129,15 @@ Decomposes the flat CSV into **Third Normal Form (3NF)**:
                                     └──────────────┘
 ```
 
-Validation checks after normalization:
-- No duplicate primary keys
-- No missing foreign keys
-- Row counts per table
+Validation checks after normalization confirm no duplicate primary keys and no missing foreign keys.
 
-### Stage 5 — Load (`oracle_loader.py`)
+### Stage 5 — Load
 
-Inserts normalized DataFrames into Oracle using `oracledb`:
-- Handles `NaN → None` conversion for nullable columns
-- Uses `executemany()` for batch inserts
-- Loads in dependency order: SUPPLIER → ITEM → SALES
+Inserts normalized DataFrames into Oracle using `python-oracledb`. Handles `NaN` to `None` conversion for nullable columns, uses `executemany()` for batch inserts, and loads in dependency order: SUPPLIER → ITEM → SALES.
 
 ---
 
-## 🗄️ Database Schema
+## Database Schema
 
 ### Entity-Relationship Diagram
 
@@ -197,70 +172,45 @@ Inserts normalized DataFrames into Oracle using `oracledb`:
 
 ---
 
-## 📊 SQL Analytics Layer
+## SQL Analytics Layer
 
 ### Business Views
 
-Four materialized views power the analytics queries:
+Five views power the analytics and dashboard layer:
 
-| View | Purpose | Key Columns |
-|------|---------|-------------|
-| `VW_SALES_DETAILS` | Denormalized join of all 3 tables | All columns from SALES + ITEM + SUPPLIER |
-| `VW_MONTHLY_SALES` | Monthly aggregated totals | YEAR, MONTH, TOTAL_RETAIL_SALES, TOTAL_WAREHOUSE_SALES, TOTAL_SALES |
-| `VW_SUPPLIER_PERFORMANCE` | Supplier-level KPIs | SUPPLIER_NAME, PRODUCT_COUNT, TOTAL_SALES |
-| `VW_PRODUCT_PERFORMANCE` | Product-level performance | ITEM_CODE, ITEM_DESCRIPTION, TOTAL_RETAIL_SALES, TOTAL_WAREHOUSE_SALES |
+| View | Purpose |
+|------|---------|
+| `VW_SALES_DETAILS` | Denormalized join of all 3 tables — full row-level detail |
+| `VW_MONTHLY_SALES` | Monthly aggregated totals with retail, warehouse, and combined sales |
+| `VW_SUPPLIER_PERFORMANCE` | Supplier-level KPIs including product count and sales breakdown |
+| `VW_PRODUCT_PERFORMANCE` | Product-level retail vs warehouse performance |
+| `VW_DISTRIBUTION_ANALYSIS` | Retail transfer activity and distribution patterns |
 
-> **Note:** `TOTAL_SALES = RETAIL_SALES + WAREHOUSE_SALES`. RETAIL_TRANSFERS represent inventory movement between stores and are excluded from the sales total.
+`TOTAL_SALES` is defined as `RETAIL_SALES + WAREHOUSE_SALES`. RETAIL_TRANSFERS represent inventory movement between stores and are excluded from the revenue total.
 
 ### Analytics Domains
 
-```
-┌────────────────────────────────────────────────────────────┐
-│                   DASHBOARD QUERIES                        │
-│          Executive KPIs · Monthly Trends                   │
-│         Top Suppliers · Top Products                       │
-├──────────────┬──────────────┬──────────────┬───────────────┤
-│   DEMAND     │  SUPPLIER    │  WAREHOUSE   │   PRODUCT     │
-│   PLANNING   │  ANALYTICS   │  ANALYTICS   │   ANALYTICS   │
-│──────────────│──────────────│──────────────│───────────────│
-│ Monthly      │ Top          │ Warehouse vs │ Top/Bottom    │
-│  Trends      │  Suppliers   │  Retail      │  Products     │
-│ Peak Months  │ Portfolio    │ Contribution │ By Category   │
-│ Top/Bottom   │  Size        │  %           │ Avg Sales/    │
-│  Products    │ Contribution │ By Item Type │  Product      │
-│ By Item Type │  %           │ Top Warehouse│ No-Sales      │
-│ Contribution │ Ranking      │  Products    │  Detection    │
-│  %           │ Above Avg    │ Retail vs    │ Product Count │
-│              │ Retail vs    │  Warehouse   │  by Category  │
-│              │  Warehouse   │              │               │
-├──────────────┴──────────────┴──────────────┴───────────────┤
-│                    BUSINESS VIEWS                          │
-│  VW_SALES_DETAILS · VW_MONTHLY_SALES                      │
-│  VW_SUPPLIER_PERFORMANCE · VW_PRODUCT_PERFORMANCE         │
-├────────────────────────────────────────────────────────────┤
-│              ORACLE DATABASE (3NF)                         │
-│         SUPPLIER · ITEM · SALES                            │
-└────────────────────────────────────────────────────────────┘
-```
+| Domain | Script | Queries | Key Analyses |
+|--------|--------|---------|-------------|
+| Demand Planning | `05_demand_planning.sql` | 6 | Monthly trends, peak months, top/bottom products, contribution % |
+| Supplier Analytics | `06_supplier_analytics.sql` | 7 | Ranking, portfolio size, contribution %, above-average suppliers |
+| Warehouse Analytics | `07_warehouse_analytics.sql` | 6 | Warehouse contribution %, retail vs warehouse comparison |
+| Product Analytics | `08_product_analytics.sql` | 7 | Category analysis, average sales per product, no-sales detection |
+| Dashboard | `10_dashboard_queries.sql` | 8 | Executive KPIs, summary queries for Power BI |
 
-### SQL Scripts (Execution Order)
+### Dashboard Data Sources
 
-| # | Script | Purpose |
-|---|--------|---------|
-| 01 | `01_create_user.sql` | Create `sales_etl` database user and grant permissions |
-| 02 | `02_create_tables.sql` | Create SUPPLIER, ITEM, SALES tables |
-| 03 | `03_constraints.sql` | Add primary keys, foreign keys, NOT NULL constraints |
-| 04 | `04_validation.sql` | Verify schema structure, constraints, and row counts |
-| 05 | `05_demand_planning.sql` | Monthly trends, peak months, top/bottom products |
-| 06 | `06_supplier_analytics.sql` | Supplier ranking, portfolio, contribution analysis |
-| 07 | `07_warehouse_analytics.sql` | Warehouse vs retail comparison, warehouse contribution % |
-| 08 | `08_product_analytics.sql` | Product performance, category analysis, no-sales detection |
-| 09 | `09_business_views.sql` | Create the 4 business views |
-| 10 | `10_dashboard_queries.sql` | Executive dashboard KPIs and summary queries |
+| Power BI Page | Oracle View | Supply Chain Concepts |
+|---------------|-------------|----------------------|
+| Executive Overview | VW_MONTHLY_SALES, VW_SUPPLIER_PERFORMANCE, VW_PRODUCT_PERFORMANCE | S&OP, KPIs |
+| Demand Planning | VW_MONTHLY_SALES, VW_PRODUCT_PERFORMANCE | Forecasting, ABC Segmentation |
+| Supplier Analytics | VW_SUPPLIER_PERFORMANCE | Spend Analytics, Concentration Risk |
+| Warehouse & SKU | VW_PRODUCT_PERFORMANCE, VW_MONTHLY_SALES | SKU Velocity, Throughput |
+| Distribution | VW_DISTRIBUTION_ANALYSIS | DRP, Retail Transfers |
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Sales_ETL_Project/
@@ -290,6 +240,9 @@ Sales_ETL_Project/
 │   ├── 08_product_analytics.sql   # Product analytics
 │   ├── 09_business_views.sql      # Business view definitions
 │   └── 10_dashboard_queries.sql   # Dashboard KPI queries
+│
+├── dashboard/
+│   └── screenshots/               # Power BI dashboard exports
 │
 ├── requirements.txt               # Python dependencies
 └── README.md
@@ -324,19 +277,19 @@ Sales_ETL_Project/
 
 ---
 
-## 🚀 Setup & Installation
+## Setup and Installation
 
 ### Prerequisites
 
-- **Python 3.8+**
-- **Oracle Database XE** (21c or later) with a Pluggable Database (`XEPDB1`)
-- **Oracle Instant Client** (if connecting remotely)
+- Python 3.8+
+- Oracle Database XE (21c or later) with a Pluggable Database (`XEPDB1`)
+- Power BI Desktop (for dashboard visualization)
 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Sales_ETL_Project.git
-cd Sales_ETL_Project
+git clone https://github.com/notsooamit/warehouse-retail-sales-analytics.git
+cd warehouse-retail-sales-analytics
 ```
 
 ### 2. Install Python Dependencies
@@ -372,7 +325,7 @@ DB_SERVICE = "XEPDB1"
 
 ---
 
-## ▶️ How to Run
+## How to Run
 
 ### Run the Full ETL Pipeline
 
@@ -382,14 +335,14 @@ python main.py
 
 This will:
 1. Load `data/sales.csv` into a DataFrame
-2. Print data profiling reports (missing values, duplicates, special characters)
+2. Run data profiling reports (missing values, duplicates, special characters)
 3. Clean sales columns (accounting negatives, commas, blanks)
 4. Normalize into 3NF tables (SUPPLIER, ITEM, SALES)
 5. Load all tables into Oracle
 
-### Run SQL Analytics
+### Create Views and Run Analytics
 
-After loading data, create the business views and run analytics:
+After loading data, create the business views and execute analytics:
 
 ```sql
 -- Connect as sales_etl
@@ -402,45 +355,25 @@ After loading data, create the business views and run analytics:
 @sql/10_dashboard_queries.sql   -- Dashboard KPIs
 ```
 
----
+### Connect Power BI
 
-## 📊 Power BI Dashboard
-
-The analytics layer is visualized through an interactive Power BI dashboard connected directly to the Oracle business views.
-
-### Executive Sales Dashboard
-
-![Executive Sales Dashboard](dashboard/screenshots/01_executive_overview.png)
-
-**Key Insights:**
-- **Total Sales: $10.35M** across all channels and periods
-- **Warehouse-dominant business** — 78% of sales ($8.12M) flow through the warehouse channel vs 22% retail ($2.23M)
-- **Crown Imports** is the leading supplier at $1.84M, followed by Miller Brewing and Anheuser-Busch
-- **Corona Extra** dominates the product rankings across multiple pack sizes
-- **Seasonal patterns** visible in the monthly trend — with noticeable peaks and troughs indicating demand cycles
-
-### Dashboard Data Sources
-
-| Power BI Page | Oracle View | Concepts Demonstrated |
-|---------------|-------------|----------------------|
-| Executive Overview | VW_MONTHLY_SALES, VW_SUPPLIER_PERFORMANCE, VW_PRODUCT_PERFORMANCE | S&OP, KPIs |
-| Demand Planning | VW_MONTHLY_SALES, VW_PRODUCT_PERFORMANCE | Forecasting, ABC Segmentation |
-| Supplier Analytics | VW_SUPPLIER_PERFORMANCE | Spend Analytics, Concentration Risk |
-| Warehouse & SKU | VW_PRODUCT_PERFORMANCE, VW_MONTHLY_SALES | SKU Velocity, Throughput |
-| Distribution | VW_DISTRIBUTION_ANALYSIS | DRP, Retail Transfers |
+1. Open Power BI Desktop → Get Data → Oracle Database
+2. Server: `localhost:1521/XEPDB1`
+3. Import all five business views
+4. Build dashboards using the view-to-page mapping documented above
 
 ---
 
-## 📝 Technical Notes
+## Technical Notes
 
-- **Sales columns** in the source CSV contain accounting-style negatives `(1,234)` and commas — these are cleaned to proper numeric values during the Transform phase.
-- **RETAIL_TRANSFERS** are excluded from `TOTAL_SALES` in business views because they represent inventory movement between stores, not revenue.
-- **Key consistency checks** run on the raw data (before cleaning) to detect original inconsistencies in the source.
-- The Oracle loader handles `NaN → None` conversion explicitly for nullable columns to ensure clean inserts.
+- Sales columns in the source CSV contain accounting-style negatives `(1,234)` and commas. These are cleaned to proper numeric values during the Transform phase.
+- `RETAIL_TRANSFERS` are excluded from `TOTAL_SALES` in business views because they represent inventory movement between stores, not revenue.
+- Key consistency checks run on the raw data (before cleaning) to detect original inconsistencies in the source.
+- The Oracle loader handles `NaN` to `None` conversion explicitly for nullable columns to ensure clean inserts.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Component | Technology |
 |-----------|-----------|
