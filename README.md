@@ -35,30 +35,14 @@ An end-to-end **ETL pipeline** that extracts 319,000+ retail and warehouse sales
 
 The project follows a layered architecture with clear separation between data processing, storage, and analytics:
 
-```
-+----------------------------------------------------------------+
-|                     PRESENTATION LAYER                         |
-|   Power BI Dashboard - Executive KPIs - Analytics Reports      |
-+----------------------------------------------------------------+
-|                     ANALYTICS LAYER (SQL)                       |
-|   Demand Planning - Supplier - Warehouse - Product Analytics   |
-+----------------------------------------------------------------+
-|                     VIEW LAYER (SQL)                            |
-|   VW_SALES_DETAILS - VW_MONTHLY_SALES                          |
-|   VW_SUPPLIER_PERFORMANCE - VW_PRODUCT_PERFORMANCE             |
-|   VW_DISTRIBUTION_ANALYSIS                                     |
-+----------------------------------------------------------------+
-|                     STORAGE LAYER (Oracle)                      |
-|   SUPPLIER (PK) ---+                                           |
-|   ITEM (PK) -------+--> SALES (FK, FK)                         |
-+----------------------------------------------------------------+
-|                     ETL LAYER (Python)                          |
-|   Extract (CSV) > Explore > Clean > Normalize > Load (Oracle)  |
-+----------------------------------------------------------------+
-|                     SOURCE LAYER                                |
-|   sales.csv (319,029 rows, 34 MB)                              |
-+----------------------------------------------------------------+
-```
+| Layer | Components |
+|-------|-----------|
+| **Presentation** | Power BI Dashboard, Executive KPIs, Analytics Reports |
+| **Analytics (SQL)** | Demand Planning, Supplier, Warehouse, Product Analytics |
+| **Views (SQL)** | VW_SALES_DETAILS, VW_MONTHLY_SALES, VW_SUPPLIER_PERFORMANCE, VW_PRODUCT_PERFORMANCE, VW_DISTRIBUTION_ANALYSIS |
+| **Storage (Oracle)** | SUPPLIER (PK) → SALES (FK), ITEM (PK) → SALES (FK) |
+| **ETL (Python)** | Extract → Explore → Clean → Normalize → Load |
+| **Source** | sales.csv (319,029 rows, 34 MB) |
 
 ---
 
@@ -66,12 +50,7 @@ The project follows a layered architecture with clear separation between data pr
 
 The pipeline executes in five sequential stages:
 
-```
- +----------+     +----------+     +----------+     +-------------+     +----------+
- | EXTRACT  | --> | EXPLORE  | --> |  CLEAN   | --> |  NORMALIZE  | --> |   LOAD   |
- | CSV Read |     | Profiling|     | Transform|     |  3NF Split  |     |  Oracle  |
- +----------+     +----------+     +----------+     +-------------+     +----------+
-```
+**EXTRACT** → **EXPLORE** → **CLEAN** → **NORMALIZE** → **LOAD**
 
 ### Stage 1 — Extract
 
@@ -105,30 +84,13 @@ Post-cleaning validation confirms all sales columns are numeric with no residual
 
 ### Stage 4 — Normalize
 
-Decomposes the flat CSV into **Third Normal Form (3NF)**:
+Decomposes the flat CSV into **Third Normal Form (3NF)** — three tables:
 
-```
-                     +------------------+
-                     |    sales.csv     |
-                     |   (flat file)    |
-                     +--------+---------+
-                              |
-                +-------------+-------------+
-                |             |             |
-                v             v             v
-       +--------------+ +----------+ +--------------+
-       |   SUPPLIER   | |   ITEM   | |    SALES     |
-       |--------------| |----------| |--------------|
-       | SUPPLIER_ID  | | ITEM_CODE| | YEAR         |
-       | SUPPLIER_NAME| | ITEM_DESC| | MONTH        |
-       +------+-------+ | ITEM_TYPE| | ITEM_CODE(FK)|
-              |          +----+-----+ | SUPPLIER_ID  |
-              |               |       |   (FK)       |
-              +---------------+-------| RETAIL_SALES |
-                    referenced by     | RETAIL_TRANS |
-                                      | WAREHOUSE    |
-                                      +--------------+
-```
+| Table | Columns | Role |
+|-------|---------|------|
+| **SUPPLIER** | SUPPLIER_ID (PK), SUPPLIER_NAME | Dimension table — unique suppliers |
+| **ITEM** | ITEM_CODE (PK), ITEM_DESCRIPTION, ITEM_TYPE | Dimension table — unique products |
+| **SALES** | YEAR, MONTH, ITEM_CODE (FK), SUPPLIER_ID (FK), RETAIL_SALES, RETAIL_TRANSFERS, WAREHOUSE_SALES | Fact table — transactional sales data |
 
 Validation checks after normalization confirm no duplicate primary keys and no missing foreign keys.
 
@@ -140,36 +102,41 @@ Inserts normalized DataFrames into Oracle using `python-oracledb`. Handles `NaN`
 
 ## Database Schema
 
-### Entity-Relationship Diagram
+### Tables and Relationships
 
-```
-+----------------------+          +----------------------------------+
-|      SUPPLIER        |          |              SALES               |
-|----------------------|          |----------------------------------|
-| * SUPPLIER_ID  (PK)  |-----+   |   YEAR             NUMBER  (NN) |
-|   SUPPLIER_NAME      |     |   |   MONTH            NUMBER  (NN) |
-|   VARCHAR2(200)      |     +-->| * SUPPLIER_ID (FK)  NUMBER  (NN) |
-+----------------------+     |   | * ITEM_CODE   (FK)  VARCHAR (NN) |
-                             |   |   RETAIL_SALES      NUMBER(12,2) |
-+----------------------+     |   |   RETAIL_TRANSFERS  NUMBER(12,2) |
-|        ITEM          |     |   |   WAREHOUSE_SALES   NUMBER(12,2) |
-|----------------------|     |   +----------------------------------+
-| * ITEM_CODE    (PK)  |-----+
-|   ITEM_DESCRIPTION   |            PK = Primary Key
-|   VARCHAR2(300)      |            FK = Foreign Key
-|   ITEM_TYPE          |            NN = NOT NULL
-|   VARCHAR2(50)       |
-+----------------------+
-```
+**SUPPLIER** (Dimension)
 
-### Constraints
+| Column | Data Type | Constraint |
+|--------|-----------|------------|
+| SUPPLIER_ID | NUMBER | PRIMARY KEY |
+| SUPPLIER_NAME | VARCHAR2(200) | |
 
-| Constraint | Type | Table | Column(s) |
-|------------|------|-------|-----------|
-| PK_SUPPLIER | Primary Key | SUPPLIER | SUPPLIER_ID |
-| PK_ITEM | Primary Key | ITEM | ITEM_CODE |
-| FK_SALES_SUPPLIER | Foreign Key | SALES | SUPPLIER_ID → SUPPLIER |
-| FK_SALES_ITEM | Foreign Key | SALES | ITEM_CODE → ITEM |
+**ITEM** (Dimension)
+
+| Column | Data Type | Constraint |
+|--------|-----------|------------|
+| ITEM_CODE | VARCHAR2(20) | PRIMARY KEY |
+| ITEM_DESCRIPTION | VARCHAR2(300) | |
+| ITEM_TYPE | VARCHAR2(50) | |
+
+**SALES** (Fact)
+
+| Column | Data Type | Constraint |
+|--------|-----------|------------|
+| YEAR | NUMBER | NOT NULL |
+| MONTH | NUMBER | NOT NULL |
+| ITEM_CODE | VARCHAR2(20) | FOREIGN KEY → ITEM, NOT NULL |
+| SUPPLIER_ID | NUMBER | FOREIGN KEY → SUPPLIER, NOT NULL |
+| RETAIL_SALES | NUMBER(12,2) | |
+| RETAIL_TRANSFERS | NUMBER(12,2) | |
+| WAREHOUSE_SALES | NUMBER(12,2) | |
+
+### Foreign Key Relationships
+
+| Constraint | From | To |
+|------------|------|----|
+| FK_SALES_SUPPLIER | SALES.SUPPLIER_ID | SUPPLIER.SUPPLIER_ID |
+| FK_SALES_ITEM | SALES.ITEM_CODE | ITEM.ITEM_CODE |
 
 ---
 
@@ -215,66 +182,50 @@ Five views power the analytics and dashboard layer:
 
 ```
 Sales_ETL_Project/
-│
-├── main.py                        # ETL entry point — runs full pipeline
-│
-├── src/
-│   ├── __init__.py
-│   ├── config.py                  # File paths, column lists, DB credentials
-│   ├── explore.py                 # Data profiling and exploration reports
-│   ├── clean.py                   # Sales column cleaning and validation
-│   ├── normalize.py               # 3NF decomposition (SUPPLIER, ITEM, SALES)
-│   ├── oracle_loader.py           # Oracle connection and batch inserts
-│   └── utils.py                   # Utility functions
-│
-├── data/
-│   └── sales.csv                  # Source data (319,029 rows)
-│
-├── sql/
-│   ├── 01_create_user.sql         # Database user setup
-│   ├── 02_create_tables.sql       # Table DDL
-│   ├── 03_constraints.sql         # PKs, FKs, NOT NULLs
-│   ├── 04_validation.sql          # Schema verification queries
-│   ├── 05_demand_planning.sql     # Demand planning analytics
-│   ├── 06_supplier_analytics.sql  # Supplier performance analytics
-│   ├── 07_warehouse_analytics.sql # Warehouse analytics
-│   ├── 08_product_analytics.sql   # Product analytics
-│   ├── 09_business_views.sql      # Business view definitions
-│   └── 10_dashboard_queries.sql   # Dashboard KPI queries
-│
-├── dashboard/
-│   └── screenshots/               # Power BI dashboard exports
-│
-├── requirements.txt               # Python dependencies
-└── README.md
+|
+|-- main.py                        # ETL entry point - runs full pipeline
+|
+|-- src/
+|   |-- __init__.py
+|   |-- config.py                  # File paths, column lists, DB credentials
+|   |-- explore.py                 # Data profiling and exploration reports
+|   |-- clean.py                   # Sales column cleaning and validation
+|   |-- normalize.py               # 3NF decomposition (SUPPLIER, ITEM, SALES)
+|   |-- oracle_loader.py           # Oracle connection and batch inserts
+|   |-- utils.py                   # Utility functions
+|
+|-- data/
+|   |-- sales.csv                  # Source data (319,029 rows)
+|
+|-- sql/
+|   |-- 01_create_user.sql         # Database user setup
+|   |-- 02_create_tables.sql       # Table DDL
+|   |-- 03_constraints.sql         # PKs, FKs, NOT NULLs
+|   |-- 04_validation.sql          # Schema verification queries
+|   |-- 05_demand_planning.sql     # Demand planning analytics
+|   |-- 06_supplier_analytics.sql  # Supplier performance analytics
+|   |-- 07_warehouse_analytics.sql # Warehouse analytics
+|   |-- 08_product_analytics.sql   # Product analytics
+|   |-- 09_business_views.sql      # Business view definitions
+|   |-- 10_dashboard_queries.sql   # Dashboard KPI queries
+|
+|-- dashboard/
+|   |-- screenshots/               # Power BI dashboard exports
+|
+|-- requirements.txt               # Python dependencies
+|-- README.md
 ```
 
 ### Module Responsibilities
 
-```
-+-------------+
-|  main.py    |  Orchestrates the full ETL pipeline
-+------+------+
-       | imports
-       v
-+-------------------------------------------------+
-|                    src/                          |
-|                                                 |
-|  config.py -----> Constants & DB configuration  |
-|       |                                         |
-|       v                                         |
-|  explore.py ----> Extract + Data Profiling      |
-|       |                                         |
-|       v                                         |
-|  clean.py ------> Data Cleaning & Validation    |
-|       |                                         |
-|       v                                         |
-|  normalize.py --> 3NF Normalization             |
-|       |                                         |
-|       v                                         |
-|  oracle_loader.py -> Oracle Insert              |
-+-------------------------------------------------+
-```
+| Module | Role |
+|--------|------|
+| `main.py` | Orchestrates the full ETL pipeline |
+| `config.py` | Constants, column lists, DB credentials |
+| `explore.py` | CSV extraction and data profiling reports |
+| `clean.py` | Sales column cleaning and validation |
+| `normalize.py` | 3NF decomposition into SUPPLIER, ITEM, SALES |
+| `oracle_loader.py` | Oracle connection and batch inserts |
 
 ---
 
