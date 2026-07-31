@@ -400,7 +400,32 @@ After loading data, create the business views and run analytics:
 @sql/07_warehouse_analytics.sql -- Warehouse analytics
 @sql/08_product_analytics.sql   -- Product analytics
 @sql/10_dashboard_queries.sql   -- Dashboard KPIs
-```
+---
+
+## 📊 Power BI Dashboard
+
+The analytics layer is visualized through an interactive Power BI dashboard connected directly to the Oracle business views.
+
+### Executive Sales Dashboard
+
+![Executive Sales Dashboard](dashboard/screenshots/01_executive_overview.png)
+
+**Key Insights:**
+- **Total Sales: $10.35M** across all channels and periods
+- **Warehouse-dominant business** — 78% of sales ($8.12M) flow through the warehouse channel vs 22% retail ($2.23M)
+- **Crown Imports** is the leading supplier at $1.84M, followed by Miller Brewing and Anheuser-Busch
+- **Corona Extra** dominates the product rankings across multiple pack sizes
+- **Seasonal patterns** visible in the monthly trend — with noticeable peaks and troughs indicating demand cycles
+
+### Dashboard Data Sources
+
+| Power BI Page | Oracle View | Concepts Demonstrated |
+|---------------|-------------|----------------------|
+| Executive Overview | VW_MONTHLY_SALES, VW_SUPPLIER_PERFORMANCE, VW_PRODUCT_PERFORMANCE | S&OP, KPIs |
+| Demand Planning | VW_MONTHLY_SALES, VW_PRODUCT_PERFORMANCE | Forecasting, ABC Segmentation |
+| Supplier Analytics | VW_SUPPLIER_PERFORMANCE | Spend Analytics, Concentration Risk |
+| Warehouse & SKU | VW_PRODUCT_PERFORMANCE, VW_MONTHLY_SALES | SKU Velocity, Throughput |
+| Distribution | VW_DISTRIBUTION_ANALYSIS | DRP, Retail Transfers |
 
 ---
 
@@ -422,3 +447,4 @@ After loading data, create the business views and run analytics:
 | Database | Oracle XE 21c |
 | DB Driver | python-oracledb |
 | SQL | PL/SQL, Views, Window Functions |
+| Visualization | Power BI |
