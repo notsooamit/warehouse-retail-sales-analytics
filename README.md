@@ -51,27 +51,27 @@ An end-to-end **ETL (Extract, Transform, Load)** pipeline that processes raw sal
 The project follows a layered architecture with clear separation of concerns:
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                     PRESENTATION LAYER                          │
-│   Dashboard Queries · Executive KPIs · Analytics Reports        │
-├──────────────────────────────────────────────────────────────────┤
-│                     ANALYTICS LAYER (SQL)                        │
-│   Demand Planning · Supplier · Warehouse · Product Analytics    │
-├──────────────────────────────────────────────────────────────────┤
-│                     VIEW LAYER (SQL)                             │
-│   VW_SALES_DETAILS · VW_MONTHLY_SALES                          │
-│   VW_SUPPLIER_PERFORMANCE · VW_PRODUCT_PERFORMANCE             │
-├──────────────────────────────────────────────────────────────────┤
-│                     STORAGE LAYER (Oracle)                       │
-│   SUPPLIER (PK) ──┐                                             │
-│   ITEM (PK) ──────┼──→ SALES (FK, FK)                          │
-├──────────────────────────────────────────────────────────────────┤
-│                     ETL LAYER (Python)                           │
-│   Extract (CSV) → Explore → Clean → Normalize → Load (Oracle)  │
-├──────────────────────────────────────────────────────────────────┤
-│                     SOURCE LAYER                                │
-│   sales.csv (319,029 rows · 34 MB)                              │
-└──────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                     PRESENTATION LAYER                        │
+│   Dashboard Queries · Executive KPIs · Analytics Reports      │
+├────────────────────────────────────────────────────────────────┤
+│                     ANALYTICS LAYER (SQL)                      │
+│   Demand Planning · Supplier · Warehouse · Product Analytics  │
+├────────────────────────────────────────────────────────────────┤
+│                     VIEW LAYER (SQL)                           │
+│   VW_SALES_DETAILS · VW_MONTHLY_SALES                         │
+│   VW_SUPPLIER_PERFORMANCE · VW_PRODUCT_PERFORMANCE            │
+├────────────────────────────────────────────────────────────────┤
+│                     STORAGE LAYER (Oracle)                     │
+│   SUPPLIER (PK) ──┐                                           │
+│   ITEM (PK) ──────┼──→ SALES (FK, FK)                         │
+├────────────────────────────────────────────────────────────────┤
+│                     ETL LAYER (Python)                         │
+│   Extract (CSV) → Explore → Clean → Normalize → Load (Oracle) │
+├────────────────────────────────────────────────────────────────┤
+│                     SOURCE LAYER                               │
+│   sales.csv (319,029 rows · 34 MB)                             │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -400,6 +400,8 @@ After loading data, create the business views and run analytics:
 @sql/07_warehouse_analytics.sql -- Warehouse analytics
 @sql/08_product_analytics.sql   -- Product analytics
 @sql/10_dashboard_queries.sql   -- Dashboard KPIs
+```
+
 ---
 
 ## 📊 Power BI Dashboard
